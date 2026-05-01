@@ -59,6 +59,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _selectedStockForAction;
   String? _actionType; // 'buy' or 'sell'
   double _balance = 12450.75;
+  double _lowBalanceThreshold = 1000.0;
 
   final List<Stock> _stocks = [
     Stock(
@@ -295,7 +296,62 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
           ],
-        );      default:
+        );
+      case 'alerts':
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Security Alerts',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 24),
+              if (_balance < _lowBalanceThreshold)
+                Column(
+                  children: [
+                    _buildAlertItem(
+                      title: 'Low Account Balance',
+                      description:
+                          'Your account balance is below \$${_lowBalanceThreshold.toStringAsFixed(2)}. Current balance: \$${_balance.toStringAsFixed(2)}',
+                      severity: 'high',
+                      timestamp: 'Now',
+                      onApprove: () => _approveAlert(0),
+                      onDeny: () => _denyAlert(0),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              _buildAlertItem(
+                title: 'Suspicious Activity Detected',
+                description: 'Large purchase of \$5,250 detected on your account at 2:45 PM today.',
+                severity: 'high',
+                timestamp: 'Just now',
+                onApprove: () => _approveAlert(1),
+                onDeny: () => _denyAlert(1),
+              ),
+              const SizedBox(height: 16),
+              _buildAlertItem(
+                title: 'Unusual Location',
+                description: 'Login attempt from a new location: New York, NY',
+                severity: 'medium',
+                timestamp: '2 hours ago',
+                onApprove: () => _approveAlert(2),
+                onDeny: () => _denyAlert(2),
+              ),
+              const SizedBox(height: 16),
+              _buildAlertItem(
+                title: 'Password Change',
+                description: 'Your password was successfully changed.',
+                severity: 'low',
+                timestamp: '1 day ago',
+                onApprove: () => _approveAlert(3),
+                onDeny: () => _denyAlert(3),
+              ),
+            ],
+          ),
+        );
+      default:
         return SizedBox.expand(
           child: Center(
             child: Text(
@@ -427,6 +483,119 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
+  }
+
+  Widget _buildAlertItem({
+    required String title,
+    required String description,
+    required String severity,
+    required String timestamp,
+    required VoidCallback onApprove,
+    required VoidCallback onDeny,
+  }) {
+    Color severityColor;
+    IconData severityIcon;
+
+    switch (severity) {
+      case 'high':
+        severityColor = Colors.red;
+        severityIcon = Icons.error;
+        break;
+      case 'medium':
+        severityColor = Colors.orange;
+        severityIcon = Icons.warning;
+        break;
+      case 'low':
+        severityColor = Colors.blue;
+        severityIcon = Icons.info;
+        break;
+      default:
+        severityColor = Colors.grey;
+        severityIcon = Icons.info;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: severityColor, width: 2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(severityIcon, color: severityColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      timestamp,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ElevatedButton(
+                onPressed: onDeny,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: const Text('Deny', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: onApprove,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
+                child: const Text('Approve', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _approveAlert(int index) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Alert approved')),
+    );
+    setState(() {});
+  }
+
+  void _denyAlert(int index) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Alert denied')),
+    );
+    setState(() {});
   }
 
   Widget _buildStockTable() {
