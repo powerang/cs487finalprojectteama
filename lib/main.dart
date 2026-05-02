@@ -92,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final double _lowBalanceThreshold = 1000.0;
   final int _credit = 599;
   final int _lowCreditThreshold = 600;
+  bool _sidebarCollapsed = true; // Make mobile sidebar collapsible
 
   final List<Stock> _stocks = [
     Stock(symbol: 'AAPL', name: 'Apple Inc.', quantity: 50, currentPrice: 175.43, percentChange: 5.2),
@@ -106,6 +107,18 @@ class _MyHomePageState extends State<MyHomePage> {
     AutopayEntry(recipient: 'Netflix', accountId: 'ACC-9876-5432', amount: 15.99, frequency: 'Monthly'),
     AutopayEntry(recipient: 'Gym Membership', accountId: 'ACC-4321-8765', amount: 45.00, frequency: 'Monthly'),
   ];
+
+  void _syncBalanceAlert() {
+    _alerts.removeWhere((a) => a.title == 'Low Account Balance');
+    if (_balance < _lowBalanceThreshold) {
+      _alerts.insert(0, Alert(
+        title: 'Low Account Balance',
+        description: 'Your account balance is below \$${_lowBalanceThreshold.toStringAsFixed(2)}. Current balance: \$${_balance.toStringAsFixed(2)}',
+        severity: 'high',
+        timestamp: 'Now',
+      ));
+    }
+  }
 
   late final List<Alert> _alerts = _buildInitialAlerts();
 
@@ -147,7 +160,10 @@ class _MyHomePageState extends State<MyHomePage> {
     return alerts;
   }
 
-  void _selectPage(String page) => setState(() => _selectedPage = page);
+  void _selectPage(String page) => setState(() {
+    _selectedPage = page;
+    _sidebarCollapsed = true; // collapse sidebar after selection on mobile
+  });
 
   String _getPageTitle(String page) {
     switch (page) {
@@ -202,10 +218,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildInfoCard(label: 'Balance', value: '\$${_balance.toStringAsFixed(2)}', icon: Icons.wallet),
-                    _buildInfoCard(label: 'Credit Score', value: '$_credit', icon: Icons.star),
-                    _buildInfoCard(label: 'Account Health', value: 'Excellent', icon: Icons.health_and_safety),
-                    _buildInfoCard(label: 'Account ID', value: 'ACC-2847-6923', icon: Icons.badge),
+                    Expanded(child: _buildInfoCard(label: 'Balance', value: '\$${_balance.toStringAsFixed(2)}', icon: Icons.wallet)),
+                    Expanded(child: _buildInfoCard(label: 'Credit Score', value: '$_credit', icon: Icons.star)),
+                    Expanded(child: _buildInfoCard(label: 'Account Health', value: 'Excellent', icon: Icons.health_and_safety)),
+                    Expanded(child: _buildInfoCard(label: 'Account ID', value: 'ACC-2847-6923', icon: Icons.badge)),
                   ],
                 ),
               ],
@@ -237,7 +253,9 @@ class _MyHomePageState extends State<MyHomePage> {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer,
+              color: _alerts.isEmpty
+                  ? Colors.green.shade50
+                  : Theme.of(context).colorScheme.errorContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(24),
@@ -249,16 +267,23 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.notifications_active, color: Theme.of(context).colorScheme.error, size: 24),
+                        Icon(
+                          _alerts.isEmpty ? Icons.check_circle : Icons.notifications_active,
+                          color: _alerts.isEmpty ? Colors.green : Theme.of(context).colorScheme.error,
+                          size: 24,
+                        ),
                         const SizedBox(width: 12),
-                        Text('Alert Center (${_alerts.length})',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.error)),
+                        Text(
+                          _alerts.isEmpty ? 'No Alerts' : 'Alert Center (${_alerts.length})',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: _alerts.isEmpty ? Colors.green : Theme.of(context).colorScheme.error),
+                        ),
                       ],
                     ),
                     TextButton(
                       onPressed: () => _selectPage('alerts'),
-                      child: Text('View All', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      child: Text('View All', style: TextStyle(
+                          color: _alerts.isEmpty ? Colors.green : Theme.of(context).colorScheme.error)),
                     ),
                   ],
                 ),
@@ -287,6 +312,7 @@ class _MyHomePageState extends State<MyHomePage> {
   // ─── INVESTMENTS ──────────────────────────────────────────────────────────
 
   Widget _buildInvestmentsPage() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -299,7 +325,7 @@ class _MyHomePageState extends State<MyHomePage> {
               child: ElevatedButton.icon(
                 onPressed: null,
                 icon: const Icon(Icons.add),
-                label: const Text('Buy Other Stocks'),
+                label: Text(isMobile ? 'Buy' : 'Buy Other Stocks'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
               ),
             ),
@@ -307,10 +333,17 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(child: _buildStockTable()),
-          ),
+          child: isMobile
+              ? SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(child: _buildStockTable()),
+                )
+              : SingleChildScrollView(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _buildStockTable(),
+                  ),
+                ),
         ),
       ],
     );
@@ -680,11 +713,12 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (context, setState) {
         void validateForm() {
           setState(() {
+            final parsed = double.tryParse(amountController.text.trim());
             isFormValid = recipientController.text.trim().isNotEmpty &&
                 accountIdController.text.trim().isNotEmpty &&
-                amountController.text.trim().isNotEmpty &&
-                double.tryParse(amountController.text.trim()) != null &&
-                double.parse(amountController.text.trim()) > 0;
+                parsed != null &&
+                parsed > 0 &&
+                parsed <= _balance;  // add this line
           });
         }
 
@@ -755,6 +789,22 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       onChanged: (_) => validateForm(),
                     ),
+                    if (amountController.text.isNotEmpty &&
+                        double.tryParse(amountController.text.trim()) != null &&
+                        double.parse(amountController.text.trim()) > _balance)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber, color: Colors.red, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Amount exceeds your balance of \$${_balance.toStringAsFixed(2)}',
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 32),
 
                     // Send Button
@@ -791,6 +841,15 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _showSendMoneyConfirmation(String recipient, String accountId, double amount) {
+    if (amount > _balance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Insufficient balance. You only have \$${_balance.toStringAsFixed(2)}.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -832,6 +891,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _processSendMoney(String recipient, double amount) {
     setState(() {
       _balance -= amount;
+      _syncBalanceAlert();
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1004,13 +1064,16 @@ class _MyHomePageState extends State<MyHomePage> {
   // ─── SHARED WIDGETS ───────────────────────────────────────────────────────
 
   Widget _buildInfoCard({required String label, required String value, required IconData icon}) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, color: Colors.white, size: 32),
+        Icon(icon, color: Colors.white, size: isMobile ? 24 : 32),
         const SizedBox(height: 12),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(label, textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: isMobile ? 10 : 12)),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(value, textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: isMobile ? 14 : 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -1169,6 +1232,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildStockTable() {
     return DataTable(
+      columnSpacing: MediaQuery.of(context).size.width < 600 ? 8 : 24,
       columns: const [
         DataColumn(label: Text('Symbol')),
         DataColumn(label: Text('Company')),
@@ -1264,6 +1328,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       setState(() {
                         _stocks[stockIndex].quantity += quantity;
                         _balance -= transactionAmount;
+                        _syncBalanceAlert();
                       });
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1275,6 +1340,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       setState(() {
                         _stocks[stockIndex].quantity -= quantity;
                         _balance += transactionAmount;
+                        _syncBalanceAlert();
                       });
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1300,66 +1366,104 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Text(_getPageTitle(_selectedPage)),
+        leading: LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = MediaQuery.of(context).size.width < 600;
+            if (!isMobile) return const SizedBox.shrink();
+            return IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+            );
+          },
+        ),
       ),
-      body: Row(
-        children: [
-          Container(
-            width: 250,
-            color: Theme.of(context).colorScheme.primaryContainer,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          if (!isMobile) {
+            return Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
-                  color: Theme.of(context).colorScheme.primary,
-                  child: Text('Applications',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
-                ),
-                ListTile(leading: const Icon(Icons.dashboard), title: const Text('Dashboard'),
-                    selected: _selectedPage == 'home', onTap: () => _selectPage('home')),
-                ListTile(leading: const Icon(Icons.trending_up), title: const Text('Investments'),
-                    selected: _selectedPage == 'investments', onTap: () => _selectPage('investments')),
-                ListTile(leading: const Icon(Icons.notifications), title: const Text('Alerts'),
-                    selected: _selectedPage == 'alerts', onTap: () => _selectPage('alerts')),
-                ListTile(leading: const Icon(Icons.bar_chart), title: const Text('Graphs'),
-                    selected: _selectedPage == 'graphs', onTap: () => _selectPage('graphs')),
-                ListTile(leading: const Icon(Icons.autorenew), title: const Text('AutoPay'),
-                    selected: _selectedPage == 'autopay', onTap: () => _selectPage('autopay')),
-                ListTile(leading: const Icon(Icons.send), title: const Text('Send Money'),
-                    selected: _selectedPage == 'sendmoney', onTap: () => _selectPage('sendmoney')),
-              ],
-            ),
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
+                  width: 250,
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        color: Theme.of(context).colorScheme.primary,
+                        child: Text('Applications',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
                       ),
-                      padding: const EdgeInsets.all(24),
-                      child: _buildPageContent(),
-                    ),
+                      ListTile(leading: const Icon(Icons.dashboard), title: const Text('Dashboard'),
+                          selected: _selectedPage == 'home', onTap: () => _selectPage('home')),
+                      ListTile(leading: const Icon(Icons.trending_up), title: const Text('Investments'),
+                          selected: _selectedPage == 'investments', onTap: () => _selectPage('investments')),
+                      ListTile(leading: const Icon(Icons.notifications), title: const Text('Alerts'),
+                          selected: _selectedPage == 'alerts', onTap: () => _selectPage('alerts')),
+                      ListTile(leading: const Icon(Icons.bar_chart), title: const Text('Graphs'),
+                          selected: _selectedPage == 'graphs', onTap: () => _selectPage('graphs')),
+                      ListTile(leading: const Icon(Icons.autorenew), title: const Text('AutoPay'),
+                          selected: _selectedPage == 'autopay', onTap: () => _selectPage('autopay')),
+                      ListTile(leading: const Icon(Icons.send), title: const Text('Send Money'),
+                          selected: _selectedPage == 'sendmoney', onTap: () => _selectPage('sendmoney')),
+                    ],
                   ),
-                ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildPageContent(),
+                  ),
+                ),
+              ],
+            );
+          }
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: _buildPageContent(),
+                ),
               ),
-            ),
-          ),
-        ],
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                left: _sidebarCollapsed ? -280 : 0,
+                top: 0,
+                bottom: 0,
+                width: 280,
+                child: Container(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ListTile(leading: const Icon(Icons.dashboard), title: const Text('Dashboard'),
+                          selected: _selectedPage == 'home', onTap: () => _selectPage('home')),
+                      ListTile(leading: const Icon(Icons.trending_up), title: const Text('Investments'),
+                          selected: _selectedPage == 'investments', onTap: () => _selectPage('investments')),
+                      ListTile(leading: const Icon(Icons.notifications), title: const Text('Alerts'),
+                          selected: _selectedPage == 'alerts', onTap: () => _selectPage('alerts')),
+                      ListTile(leading: const Icon(Icons.bar_chart), title: const Text('Graphs'),
+                          selected: _selectedPage == 'graphs', onTap: () => _selectPage('graphs')),
+                      ListTile(leading: const Icon(Icons.autorenew), title: const Text('AutoPay'),
+                          selected: _selectedPage == 'autopay', onTap: () => _selectPage('autopay')),
+                      ListTile(leading: const Icon(Icons.send), title: const Text('Send Money'),
+                          selected: _selectedPage == 'sendmoney', onTap: () => _selectPage('sendmoney')),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // INTERACTIVE CHART WIDGETS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1852,8 +1956,10 @@ class _InteractiveDonutChartState extends State<InteractiveDonutChart> {
         ),
         const SizedBox(height: 12),
         // Legend
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        Wrap(
+          alignment: WrapAlignment.spaceAround,
+          spacing: 8,
+          runSpacing: 8,
           children: List.generate(labels.length, (i) => Column(
             children: [
               Container(width: 14, height: 14,
