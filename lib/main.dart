@@ -65,6 +65,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Financial App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
@@ -1337,7 +1338,6 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Main Content', style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 16),
                   Expanded(
                     child: Container(
