@@ -21,15 +21,35 @@ class Stock {
 
 class AutopayEntry {
   final String recipient;
+  final String accountId;
   final double amount;
   final String frequency;
   bool isActive;
 
   AutopayEntry({
     required this.recipient,
+    required this.accountId,
     required this.amount,
     required this.frequency,
     this.isActive = true,
+  });
+}
+
+class Alert {
+  final String title;
+  final String description;
+  final String severity; // 'high', 'medium', 'low'
+  final String timestamp;
+  bool isApproved;
+  bool isDenied;
+
+  Alert({
+    required this.title,
+    required this.description,
+    required this.severity,
+    required this.timestamp,
+    this.isApproved = false,
+    this.isDenied = false,
   });
 }
 
@@ -69,6 +89,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String _selectedPage = 'home';
   double _balance = 12450.75;
   final double _lowBalanceThreshold = 1000.0;
+  final int _credit = 599;
+  final int _lowCreditThreshold = 600;
 
   final List<Stock> _stocks = [
     Stock(symbol: 'AAPL', name: 'Apple Inc.', quantity: 50, currentPrice: 175.43, percentChange: 5.2),
@@ -79,10 +101,50 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
 
   final List<AutopayEntry> _autopayEntries = [
-    AutopayEntry(recipient: 'Electric Company', amount: 120.00, frequency: 'Monthly'),
-    AutopayEntry(recipient: 'Netflix', amount: 15.99, frequency: 'Monthly'),
-    AutopayEntry(recipient: 'Gym Membership', amount: 45.00, frequency: 'Monthly'),
+    AutopayEntry(recipient: 'Electric Company', accountId: 'ACC-1234-5678', amount: 120.00, frequency: 'Monthly'),
+    AutopayEntry(recipient: 'Netflix', accountId: 'ACC-9876-5432', amount: 15.99, frequency: 'Monthly'),
+    AutopayEntry(recipient: 'Gym Membership', accountId: 'ACC-4321-8765', amount: 45.00, frequency: 'Monthly'),
   ];
+
+  late final List<Alert> _alerts = _buildInitialAlerts();
+
+  List<Alert> _buildInitialAlerts() {
+    final alerts = <Alert>[
+      if (_balance < _lowBalanceThreshold)
+        Alert(
+          title: 'Low Account Balance',
+          description: 'Your account balance is below \$${_lowBalanceThreshold.toStringAsFixed(2)}. Current balance: \$${_balance.toStringAsFixed(2)}',
+          severity: 'high',
+          timestamp: 'Now',
+        ),
+      if (_credit < _lowCreditThreshold)
+        Alert(
+          title: 'Low Credit Score',
+          description: 'Your credit score is below the recommended threshold. Current score: $_credit (Threshold: $_lowCreditThreshold)',
+          severity: 'high',
+          timestamp: 'Today',
+        ),
+      Alert(
+        title: 'Suspicious Activity Detected',
+        description: 'Large purchase of \$5,250 detected on your account at 2:45 PM today.',
+        severity: 'high',
+        timestamp: 'Just now',
+      ),
+      Alert(
+        title: 'Unusual Location',
+        description: 'Login attempt from a new location: New York, NY',
+        severity: 'medium',
+        timestamp: '2 hours ago',
+      ),
+      Alert(
+        title: 'Password Change',
+        description: 'Your password was successfully changed.',
+        severity: 'low',
+        timestamp: '1 day ago',
+      ),
+    ];
+    return alerts;
+  }
 
   void _selectPage(String page) => setState(() => _selectedPage = page);
 
@@ -93,6 +155,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'alerts': return 'Alerts';
       case 'graphs': return 'Graphs';
       case 'autopay': return 'AutoPay';
+      case 'sendmoney': return 'Send Money';
       default: return 'Dashboard';
     }
   }
@@ -104,6 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 'alerts': return _buildAlertsPage();
       case 'graphs': return _buildGraphsPage();
       case 'autopay': return _buildAutopayPage();
+      case 'sendmoney': return _buildSendMoneyPage();
       default:
         return SizedBox.expand(
           child: Center(
@@ -138,6 +202,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildInfoCard(label: 'Balance', value: '\$${_balance.toStringAsFixed(2)}', icon: Icons.wallet),
+                    _buildInfoCard(label: 'Credit Score', value: '$_credit', icon: Icons.star),
                     _buildInfoCard(label: 'Account Health', value: 'Excellent', icon: Icons.health_and_safety),
                     _buildInfoCard(label: 'Account ID', value: 'ACC-2847-6923', icon: Icons.badge),
                   ],
@@ -179,20 +244,37 @@ class _MyHomePageState extends State<MyHomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.notifications_active, color: Theme.of(context).colorScheme.error, size: 24),
-                    const SizedBox(width: 12),
-                    Text('Alert Center',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.error)),
+                    Row(
+                      children: [
+                        Icon(Icons.notifications_active, color: Theme.of(context).colorScheme.error, size: 24),
+                        const SizedBox(width: 12),
+                        Text('Alert Center (${_alerts.length})',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.error)),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () => _selectPage('alerts'),
+                      child: Text('View All', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildAlert(title: 'Unusual Activity', message: 'Large purchase detected on 04/28', severity: 'warning'),
-                const SizedBox(height: 12),
-                _buildAlert(title: 'Bill Reminder', message: 'Your electric bill is due on 05/05', severity: 'info'),
-                const SizedBox(height: 12),
-                _buildAlert(title: 'Low Balance Alert', message: 'Your balance will fall below \$5,000 this month', severity: 'warning'),
+                if (_alerts.isEmpty)
+                  Center(
+                    child: Text('No alerts', style: Theme.of(context).textTheme.bodyMedium),
+                  )
+                else
+                  ..._alerts.take(3).map((alert) => [
+                    _buildSimpleAlert(
+                      title: alert.title,
+                      message: alert.description,
+                      severity: alert.severity,
+                    ),
+                    const SizedBox(height: 12),
+                  ]).expand((e) => e).toList(),
               ],
             ),
           ),
@@ -240,37 +322,52 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Security Alerts', style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Security Alerts (${_alerts.length})', style: Theme.of(context).textTheme.titleLarge),
+              if (_alerts.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: () => _clearAllAlerts(),
+                  icon: const Icon(Icons.delete_sweep),
+                  label: const Text('Clear All'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 24),
-          if (_balance < _lowBalanceThreshold) ...[
-            _buildAlertItem(
-              title: 'Low Account Balance',
-              description: 'Your account balance is below \$${_lowBalanceThreshold.toStringAsFixed(2)}. Current balance: \$${_balance.toStringAsFixed(2)}',
-              severity: 'high', timestamp: 'Now',
-              onApprove: () => _approveAlert(0), onDeny: () => _denyAlert(0),
+          if (_alerts.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Column(
+                  children: [
+                    Icon(Icons.check_circle, size: 64, color: Colors.green),
+                    const SizedBox(height: 16),
+                    Text('No alerts', style: Theme.of(context).textTheme.titleMedium),
+                    Text('You\'re all caught up!', style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _alerts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) => _buildAlertItem(
+                title: _alerts[index].title,
+                description: _alerts[index].description,
+                severity: _alerts[index].severity,
+                timestamp: _alerts[index].timestamp,
+                onApprove: () => _approveAlert(index),
+                onDeny: () => _denyAlert(index),
+              ),
             ),
-            const SizedBox(height: 16),
-          ],
-          _buildAlertItem(
-            title: 'Suspicious Activity Detected',
-            description: 'Large purchase of \$5,250 detected on your account at 2:45 PM today.',
-            severity: 'high', timestamp: 'Just now',
-            onApprove: () => _approveAlert(1), onDeny: () => _denyAlert(1),
-          ),
-          const SizedBox(height: 16),
-          _buildAlertItem(
-            title: 'Unusual Location',
-            description: 'Login attempt from a new location: New York, NY',
-            severity: 'medium', timestamp: '2 hours ago',
-            onApprove: () => _approveAlert(2), onDeny: () => _denyAlert(2),
-          ),
-          const SizedBox(height: 16),
-          _buildAlertItem(
-            title: 'Password Change',
-            description: 'Your password was successfully changed.',
-            severity: 'low', timestamp: '1 day ago',
-            onApprove: () => _approveAlert(3), onDeny: () => _denyAlert(3),
-          ),
         ],
       ),
     );
@@ -570,8 +667,183 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  // ─── SEND MONEY ────────────────────────────────────────────────────────────
+
+  Widget _buildSendMoneyPage() {
+    final recipientController = TextEditingController();
+    final accountIdController = TextEditingController();
+    final amountController = TextEditingController();
+    bool isFormValid = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        void validateForm() {
+          setState(() {
+            isFormValid = recipientController.text.trim().isNotEmpty &&
+                accountIdController.text.trim().isNotEmpty &&
+                amountController.text.trim().isNotEmpty &&
+                double.tryParse(amountController.text.trim()) != null &&
+                double.parse(amountController.text.trim()) > 0;
+          });
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Send Money', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 24),
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Recipient Name Field
+                    Text('Recipient Name', style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: recipientController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter recipient name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        prefixIcon: const Icon(Icons.person),
+                      ),
+                      onChanged: (_) => validateForm(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Account ID Field
+                    Text('Account ID', style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: accountIdController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter recipient account ID',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        prefixIcon: const Icon(Icons.account_box),
+                      ),
+                      onChanged: (_) => validateForm(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Amount Field
+                    Text('Amount', style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: 'Enter amount to send',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        prefixIcon: const Icon(Icons.attach_money),
+                        prefixText: '\$ ',
+                      ),
+                      onChanged: (_) => validateForm(),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Send Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isFormValid
+                            ? () => _showSendMoneyConfirmation(
+                                recipientController.text.trim(),
+                                accountIdController.text.trim(),
+                                double.parse(amountController.text.trim()))
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey.shade500,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Send Money',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSendMoneyConfirmation(String recipient, String accountId, double amount) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Payment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Please confirm the following payment:'),
+            const SizedBox(height: 16),
+            _buildConfirmRow('Recipient', recipient),
+            const SizedBox(height: 8),
+            _buildConfirmRow('Account ID', accountId),
+            const SizedBox(height: 8),
+            _buildConfirmRow('Amount', '\$${amount.toStringAsFixed(2)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _processSendMoney(recipient, amount);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _processSendMoney(String recipient, double amount) {
+    setState(() {
+      _balance -= amount;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Payment of \$${amount.toStringAsFixed(2)} sent to $recipient'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   void _showAddAutopayDialog() {
     final recipientController = TextEditingController();
+    final accountIdController = TextEditingController();
     final amountController = TextEditingController();
     String selectedFrequency = 'Monthly';
     bool canSubmit = false;
@@ -602,6 +874,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     controller: recipientController,
                     decoration: const InputDecoration(
                       hintText: 'Enter Payee',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    onChanged: (_) => checkCanSubmit(),
+                  ),
+                  Text('Account ID', style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: accountIdController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter Account ID',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
@@ -647,6 +930,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Navigator.pop(context);
                   _confirmAutopay(
                     recipientController.text.trim(),
+                    accountIdController.text.trim(),
                     double.parse(amountController.text.trim()),
                     selectedFrequency,
                   );
@@ -664,7 +948,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _confirmAutopay(String recipient, double amount, String frequency) {
+  void _confirmAutopay(String recipient, String accountId, double amount, String frequency) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -677,6 +961,8 @@ class _MyHomePageState extends State<MyHomePage> {
             const SizedBox(height: 16),
             _buildConfirmRow('Recipient', recipient),
             const SizedBox(height: 8),
+            _buildConfirmRow('Account ID', accountId),
+            const SizedBox(height: 8),
             _buildConfirmRow('Amount', '\$${amount.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
             _buildConfirmRow('Frequency', frequency),
@@ -688,7 +974,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               setState(() {
                 _autopayEntries.add(AutopayEntry(
-                  recipient: recipient, amount: amount, frequency: frequency,
+                  recipient: recipient, accountId: accountId, amount: amount, frequency: frequency,
                 ));
               });
               Navigator.pop(context);
@@ -754,10 +1040,15 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildAlert({required String title, required String message, required String severity}) {
-    Color severityColor = severity == 'warning'
-        ? Theme.of(context).colorScheme.error
-        : Theme.of(context).colorScheme.primary;
+  Widget _buildSimpleAlert({required String title, required String message, required String severity}) {
+    Color severityColor;
+    IconData severityIcon;
+    switch (severity) {
+      case 'high': severityColor = Colors.red; severityIcon = Icons.error; break;
+      case 'medium': severityColor = Colors.orange; severityIcon = Icons.warning; break;
+      case 'low': severityColor = Colors.blue; severityIcon = Icons.info; break;
+      default: severityColor = Colors.grey; severityIcon = Icons.info;
+    }
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.light
@@ -769,7 +1060,7 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(severity == 'warning' ? Icons.warning : Icons.info, color: severityColor, size: 20),
+          Icon(severityIcon, color: severityColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -851,13 +1142,28 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _approveAlert(int index) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alert approved')));
-    setState(() {});
+    if (index >= 0 && index < _alerts.length) {
+      setState(() {
+        _alerts[index].isApproved = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alert approved')));
+    }
   }
 
   void _denyAlert(int index) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alert denied')));
-    setState(() {});
+    if (index >= 0 && index < _alerts.length) {
+      setState(() {
+        _alerts.removeAt(index);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alert dismissed')));
+    }
+  }
+
+  void _clearAllAlerts() {
+    setState(() {
+      _alerts.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All alerts cleared')));
   }
 
   Widget _buildStockTable() {
@@ -1019,6 +1325,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     selected: _selectedPage == 'graphs', onTap: () => _selectPage('graphs')),
                 ListTile(leading: const Icon(Icons.autorenew), title: const Text('AutoPay'),
                     selected: _selectedPage == 'autopay', onTap: () => _selectPage('autopay')),
+                ListTile(leading: const Icon(Icons.send), title: const Text('Send Money'),
+                    selected: _selectedPage == 'sendmoney', onTap: () => _selectPage('sendmoney')),
               ],
             ),
           ),
