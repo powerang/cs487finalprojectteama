@@ -89,9 +89,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String _selectedPage = 'home';
   double _balance = 12450.75;
-  final double _lowBalanceThreshold = 1000.0;
+  double _lowBalanceThreshold = 1000.0;
   final int _credit = 599;
-  final int _lowCreditThreshold = 600;
+  int _lowCreditThreshold = 600;
   bool _sidebarCollapsed = true; // Make mobile sidebar collapsible
 
   final List<Stock> _stocks = [
@@ -356,6 +356,83 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ─── THRESHOLD SETTINGS ─────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Alert Thresholds', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Low Balance Threshold', style: Theme.of(context).textTheme.bodyMedium),
+                          const SizedBox(height: 8),
+                          TextField(
+                            keyboardType: TextInputType.number,
+                            controller: TextEditingController(text: _lowBalanceThreshold.toStringAsFixed(2)),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null && parsed > 0) {
+                                setState(() => _lowBalanceThreshold = parsed);
+                              }
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Enter amount in \$',
+                              prefixText: '\$ ',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Low Credit Score Threshold', style: Theme.of(context).textTheme.bodyMedium),
+                          const SizedBox(height: 8),
+                          TextField(
+                            keyboardType: TextInputType.number,
+                            controller: TextEditingController(text: _lowCreditThreshold.toString()),
+                            onChanged: (value) {
+                              final parsed = int.tryParse(value);
+                              if (parsed != null && parsed > 0 && parsed <= 850) {
+                                setState(() => _lowCreditThreshold = parsed);
+                              }
+                            },
+                            decoration: InputDecoration(
+                              hintText: 'Enter credit score (0-850)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Adjust these thresholds to receive alerts when your balance or credit score drops below the specified values.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // ─── ALERTS LIST ──────────────────────────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
